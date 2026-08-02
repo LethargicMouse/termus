@@ -3,7 +3,8 @@ const std = @import("std");
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-    const exe = b.addExecutable(.{
+    const raw_term = b.dependency("raw_term", .{});
+    var exe = b.addExecutable(.{
         .name = "termus",
         .root_module = b.createModule(.{
             .root_source_file = b.path("src/main.zig"),
@@ -11,6 +12,7 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         }),
     });
+    exe.root_module.addImport("raw_term", raw_term.module("raw_term"));
     b.installArtifact(exe);
     const run_step = b.step("run", "Run the app");
     const run_cmd = b.addRunArtifact(exe);
