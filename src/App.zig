@@ -8,50 +8,32 @@ const Song = struct {
 
 const App = @This();
 
+io: std.Io,
 term: RawTerm,
-songs: []const Song,
-songs_arena: std.heap.ArenaAllocator,
+dir: std.Io.Dir,
+entry_count: usize,
 cursor: usize = 0,
 is_running: bool = true,
 
-pub fn init(io: std.Io, gpa: std.mem.Allocator) !App {
+pub fn init(io: std.Io) !App {
     const term = try RawTerm.init(io);
-    var songs_arena = std.heap.ArenaAllocator.init(gpa);
-    const songs = try getMusic(io, gpa, &songs_arena);
-    return .{
-        .term = term,
-        .songs = songs,
-        .songs_arena = songs_arena,
-    };
-}
-
-fn getMusic(
-    io: std.Io,
-    gpa: std.mem.Allocator,
-    arena: *std.heap.ArenaAllocator,
-) ![]const Song {
-    var dir = try std.Io.Dir.openDirAbsolute(io, "/home/gkozirev/music/all/", .{ .iterate = true });
-    defer dir.close(io);
-    var vec = std.ArrayList(Song).empty;
-    defer vec.deinit(gpa);
+    const dir = try std.Io.Dir.openDirAbsolute(io, "/home/gkozirev/music/all", .{ .iterate = true });
+    var entry_count: usize = 0;
     var iter = dir.iterateAssumeFirstIteration();
-    while (try iter.next(io)) |entry| {
-        if (entry.kind == .file) {
-            const name = try arena.allocator().alloc(u8, entry.name.len);
-            @memcpy(name, entry.name);
-            try vec.append(gpa, .{
-                .name = name,
-            });
-        }
+    while (try iter.next(io)) |_| {
+        entry_count += 1;
     }
-    const songs = try arena.allocator().alloc(Song, vec.items.len);
-    @memcpy(songs, vec.items);
-    return songs;
+    return .{
+        .io = io,
+        .term = term,
+        .dir = dir,
+        .entry_count = entry_count,
+    };
 }
 
 pub fn deinit(app: *App) void {
     app.term.deinit();
-    app.songs_arena.deinit();
+    app.dir.close(app.io);
     app.* = undefined;
 }
 
@@ -65,13 +47,16 @@ pub fn run(app: *App) !void {
 
 fn draw(app: *App) !void {
     try app.term.clearScreen();
-    for (app.songs[0..50], 0..) |song, i| {
+    var iter = app.dir.iterate();
+    var i: usize = 0;
+    while (try iter.next(app.io)) |entry| : (i += 1) {
+        if (i == 50) break; // tmp
         if (app.cursor == i) {
             try app.term.writeAll(">");
         } else {
             try app.term.writeAll(" ");
         }
-        try app.term.print(" {s}\r\n", .{song.name});
+        try app.term.print(" {s}\r\n", .{entry.name});
     }
     try app.term.flush();
 }
@@ -85,4 +70,3 @@ fn update(app: *App) !void {
         else => {},
     }
 }
-
