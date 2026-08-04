@@ -13,11 +13,12 @@ term: RawTerm,
 dir: std.Io.Dir,
 entry_count: usize,
 cursor: usize = 0,
-is_running: bool = true,
+running: bool = true,
+dirty: bool = true,
 
 pub fn init(io: std.Io) !App {
     const term = try RawTerm.init(io);
-    const dir = try std.Io.Dir.openDirAbsolute(io, "/home/gkozirev/music/all", .{ .iterate = true });
+    const dir = try std.Io.Dir.openDirAbsolute(io, "/home/gkozirev/music", .{ .iterate = true });
     var entry_count: usize = 0;
     var iter = dir.iterateAssumeFirstIteration();
     while (try iter.next(io)) |_| {
@@ -39,14 +40,18 @@ pub fn deinit(app: *App) void {
 
 pub fn run(app: *App) !void {
     try app.term.hideCursor();
-    while (app.is_running) {
-        try app.draw();
+    while (app.running) {
+        if (app.dirty) {
+            try app.draw();
+            try app.flush();
+        }
         try app.update();
     }
 }
 
 fn draw(app: *App) !void {
     try app.term.clearScreen();
+    try app.term.moveTo(1, 1);
     var iter = app.dir.iterate();
     var i: usize = 0;
     while (try iter.next(app.io)) |entry| : (i += 1) {
@@ -58,15 +63,26 @@ fn draw(app: *App) !void {
         }
         try app.term.print(" {s}\r\n", .{entry.name});
     }
-    try app.term.flush();
 }
 
 fn update(app: *App) !void {
-    const input = try app.term.readByte();
+    const minput = try app.term.readByte();
+    if (minput) |input| {
+        app.dirty = true;
+        try app.handleInput(input);
+    }
+}
+
+fn handleInput(app: *App, input: u8) !void {
     switch (input) {
-        'q', 27 => app.is_running = false,
+        'q', 27 => app.running = false,
         'j' => app.cursor = (app.cursor + 1) % 50,
         'k' => app.cursor = (app.cursor + 50 - 1) % 50,
-        else => {},
+        else => app.dirty = false,
     }
+}
+
+fn flush(app: *App) !void {
+    try app.term.flush();
+    app.dirty = false;
 }
