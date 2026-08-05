@@ -24,8 +24,3 @@ pub fn deinit(app: *App) void {
     app.term.deinit();
     app.* = undefined;
 }
-
-fn flush(app: *App) !void {
-    try app.term.flush();
-    app.dirty = false;
-}
