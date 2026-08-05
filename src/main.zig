@@ -1,6 +1,8 @@
 const std = @import("std");
 
-const App = @import("App.zig");
+const runApp = @import("raw_term").runApp;
+
+const Runner = @import("Runner.zig");
 
 pub fn main(init: std.process.Init) !u8 {
     run(init) catch |err| switch (err) {
@@ -10,7 +12,7 @@ pub fn main(init: std.process.Init) !u8 {
 }
 
 fn run(init: std.process.Init) !void {
-    var app = try App.init(init.io);
-    defer app.deinit();
-    try app.run();
+    var runner = try Runner.init(init.io);
+    defer runner.deinit();
+    try runApp(&runner);
 }

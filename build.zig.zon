@@ -5,8 +5,8 @@
     .minimum_zig_version = "0.16.0",
     .dependencies = .{
         .raw_term = .{
-            .url = "git+https://github.com/LethargicMouse/raw-term#18b0822e4f8b132f7f809cd0592e284159febc6e",
-            .hash = "raw_term-0.0.0-MBLoo98WAAC4FAB2kJTNoiYBaC6W7KprNvME3pqa9qHr",
+            .url = "git+https://github.com/LethargicMouse/raw-term#9da16dd8bd9564bdc5dd902a1b327761f8eeb951",
+            .hash = "raw_term-0.0.0-MBLooxkaAABr_owyloULNu5qhqbYCbsOnx8RdU2dTOCt",
         },
     },
     .paths = .{
