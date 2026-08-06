@@ -45,25 +45,44 @@ pub fn deinit(runner: *Runner) void {
 }
 
 pub fn draw(runner: *Runner) !void {
-    try runner.app.term.moveTo(1, 1);
     var iter = runner.dir.iterate();
+    const start = runner.getDrawStart();
+    const end = start + runner.app.term.getSize().height;
     var i: usize = 0;
+    while (i != start) : (i += 1) {
+        _ = try iter.next(runner.app.io);
+    }
+    try runner.app.term.moveTo(1, 1);
     while (try iter.next(runner.app.io)) |entry| : (i += 1) {
-        if (i == 50) break; // tmp
+        if (i == end) break;
+        if (i != start) {
+            try runner.app.term.writeAll("\r\n");
+        }
         if (runner.cursor == i) {
             try runner.app.term.writeAll(">");
         } else {
             try runner.app.term.writeAll(" ");
         }
-        try runner.app.term.print(" {s}\r\n", .{entry.name});
+        try runner.app.term.print(" {s}", .{entry.name});
     }
+}
+
+fn getDrawStart(runner: Runner) usize {
+    const height = runner.app.term.getSize().height;
+    if (runner.cursor <= height / 2) {
+        return 0;
+    }
+    if (runner.cursor >= runner.entry_count - height / 2) {
+        return runner.entry_count - height;
+    }
+    return runner.cursor - height / 2;
 }
 
 pub fn handleInput(runner: *Runner, input: u8) !void {
     switch (input) {
         'q', 27 => runner.running = false,
-        'j' => runner.cursor = (runner.cursor + 1) % 50,
-        'k' => runner.cursor = (runner.cursor + 50 - 1) % 50,
+        'j' => runner.cursor = (runner.cursor + 1) % runner.entry_count,
+        'k' => runner.cursor = (runner.cursor + runner.entry_count - 1) % runner.entry_count,
         ' ' => try runner.togglePlay(),
         else => runner.app.dirty = false,
     }
