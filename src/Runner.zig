@@ -60,8 +60,9 @@ pub fn deinit(runner: *Runner) void {
 
 pub fn draw(runner: *Runner) !void {
     var iter = runner.dir.iterate();
-    const start = runner.getDrawStart();
-    const end = start + runner.app.term.getSize().height;
+    const start = try runner.getDrawStart();
+    const size = try runner.app.term.getSize();
+    const end = start + size.height;
     var i: usize = 0;
     while (i != start) : (i += 1) {
         _ = try iter.next(runner.app.io);
@@ -81,8 +82,9 @@ pub fn draw(runner: *Runner) !void {
     }
 }
 
-fn getDrawStart(runner: Runner) usize {
-    const height = runner.app.term.getSize().height;
+fn getDrawStart(runner: *Runner) !usize {
+    const size = try runner.app.term.getSize();
+    const height = size.height;
     if (runner.cursor <= height / 2) {
         return 0;
     }
