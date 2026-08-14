@@ -17,10 +17,11 @@ entry_count: usize,
 cursor: usize = 0,
 running: bool = true,
 
-pub fn init(io: std.Io) !Runner {
+pub fn init(io: std.Io, args: std.process.Args) !Runner {
+    const path = getPathArg(args) orelse "/home/gkozirev/music";
     var app = try App.init(io);
     try app.term.hideCursor();
-    const dir = try std.Io.Dir.openDirAbsolute(io, "/home/gkozirev/music", .{ .iterate = true });
+    const dir = try std.Io.Dir.cwd().openDir(io, path, .{ .iterate = true });
     var entry_count: usize = 0;
     var iter = dir.iterateAssumeFirstIteration();
     while (try iter.next(io)) |_| {
@@ -31,6 +32,12 @@ pub fn init(io: std.Io) !Runner {
         .dir = dir,
         .entry_count = entry_count,
     };
+}
+
+fn getPathArg(args: std.process.Args) ?[]const u8 {
+    var iter = args.iterate();
+    _ = iter.skip();
+    return iter.next();
 }
 
 pub fn deinit(runner: *Runner) void {

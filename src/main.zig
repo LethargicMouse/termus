@@ -12,7 +12,7 @@ pub fn main(init: std.process.Init) !u8 {
 }
 
 fn run(init: std.process.Init) !void {
-    var runner = try Runner.init(init.io);
+    var runner = try Runner.init(init.io, init.minimal.args);
     defer runner.deinit();
     try runApp(&runner);
 }
