@@ -138,7 +138,6 @@ fn play(runner: *Runner) !void {
     buffer[runner.path.len] = '/';
     const name_len = try runner.getCurrent(buffer[runner.path.len + 1 ..]);
     const current = buffer[0 .. runner.path.len + 1 + name_len :0];
-    std.debug.print("{s}\n", .{current});
     const sound = try runner.engine.createSoundFromFile(current, .{ .flags = .{
         .stream = true,
     } });
