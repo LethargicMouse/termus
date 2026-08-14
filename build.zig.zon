@@ -8,6 +8,10 @@
             .url = "git+https://github.com/LethargicMouse/raw-term#9da16dd8bd9564bdc5dd902a1b327761f8eeb951",
             .hash = "raw_term-0.0.0-MBLooxkaAABr_owyloULNu5qhqbYCbsOnx8RdU2dTOCt",
         },
+        .zaudio = .{
+            .url = "git+https://github.com/zig-gamedev/zaudio#8d0d7ebffe9008019134b3d202eabc5476aca3a4",
+            .hash = "zaudio-0.11.0-dev-_M-91owyQQD3MVQa4F1xkPgwSFWQi4HhhNfDwKI0PBWX",
+        },
     },
     .paths = .{
         "build.zig",

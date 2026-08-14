@@ -1,17 +1,20 @@
 const std = @import("std");
 
+const zaudio = @import("zaudio");
+
 const App = @import("App.zig");
 
 const Playing = struct {
-    child: std.process.Child,
+    sound: *zaudio.Sound,
     id: usize,
-    paused: bool = false,
 };
 
 const Runner = @This();
 
 app: App,
+path: []const u8,
 dir: std.Io.Dir,
+engine: *zaudio.Engine,
 playing: ?Playing = null,
 entry_count: usize,
 cursor: usize = 0,
@@ -27,10 +30,13 @@ pub fn init(io: std.Io, args: std.process.Args) !Runner {
     while (try iter.next(io)) |_| {
         entry_count += 1;
     }
+    const engine = try zaudio.Engine.create(null);
     return .{
         .app = app,
+        .path = path,
         .dir = dir,
         .entry_count = entry_count,
+        .engine = engine,
     };
 }
 
@@ -48,6 +54,7 @@ pub fn deinit(runner: *Runner) void {
     }
     runner.dir.close(runner.app.io);
     runner.app.deinit();
+    runner.engine.destroy();
     runner.* = undefined;
 }
 
@@ -102,10 +109,10 @@ fn togglePlay(runner: *Runner) !void {
             try runner.play();
             return;
         }
-        if (playing.paused) {
-            try resumePlaying(playing);
-        } else {
+        if (playing.sound.isPlaying()) {
             try pausePlaying(playing);
+        } else {
+            try resumePlaying(playing);
         }
     } else {
         try runner.play();
@@ -113,47 +120,44 @@ fn togglePlay(runner: *Runner) !void {
 }
 
 fn resumePlaying(playing: *Playing) !void {
-    try std.posix.kill(playing.child.id.?, .CONT);
-    playing.paused = false;
+    try playing.sound.start();
 }
 
 fn pausePlaying(playing: *Playing) !void {
-    try std.posix.kill(playing.child.id.?, .STOP);
-    playing.paused = true;
+    try playing.sound.stop();
 }
 
 fn stopPlaying(runner: *Runner, playing: *Playing) !void {
-    if (playing.paused) {
-        try resumePlaying(playing);
-    }
-    playing.child.kill(runner.app.io);
+    playing.sound.destroy();
     runner.playing = null;
 }
 
 fn play(runner: *Runner) !void {
     var buffer: [256]u8 = undefined;
-    const current = try runner.getCurrent(&buffer);
-    const child = try std.process.spawn(runner.app.io, .{
-        .argv = &.{ "mpv", "--no-video", current },
-        .cwd = .{ .dir = runner.dir },
-        .stdin = .ignore,
-        .stderr = .ignore,
-        .stdout = .ignore,
-    });
+    @memcpy(buffer[0..runner.path.len], runner.path);
+    buffer[runner.path.len] = '/';
+    const name_len = try runner.getCurrent(buffer[runner.path.len + 1 ..]);
+    const current = buffer[0 .. runner.path.len + 1 + name_len :0];
+    std.debug.print("{s}\n", .{current});
+    const sound = try runner.engine.createSoundFromFile(current, .{ .flags = .{
+        .stream = true,
+    } });
+    try sound.start();
     runner.playing = .{
-        .child = child,
+        .sound = sound,
         .id = runner.cursor,
     };
 }
 
-fn getCurrent(runner: *Runner, buffer: []u8) ![]const u8 {
+fn getCurrent(runner: *Runner, buffer: []u8) !usize {
     var iter = runner.dir.iterate();
     var i: usize = 0;
     while (try iter.next(runner.app.io)) |entry| : (i += 1) {
         if (i == runner.cursor) {
             // it remains valid until `next` is called again so it's ok
             @memcpy(buffer[0..entry.name.len], entry.name);
-            return buffer[0..entry.name.len];
+            buffer[entry.name.len] = 0;
+            return entry.name.len;
         }
     }
     return error.CursorOutOfScope;

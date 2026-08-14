@@ -3,7 +3,6 @@ const std = @import("std");
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
-    const raw_term = b.dependency("raw_term", .{});
     var exe = b.addExecutable(.{
         .name = "termus",
         .root_module = b.createModule(.{
@@ -12,7 +11,11 @@ pub fn build(b: *std.Build) void {
             .optimize = optimize,
         }),
     });
+    const raw_term = b.dependency("raw_term", .{});
     exe.root_module.addImport("raw_term", raw_term.module("raw_term"));
+    const zaudio = b.dependency("zaudio", .{});
+    exe.root_module.addImport("zaudio", zaudio.module("root"));
+    exe.root_module.linkLibrary(zaudio.artifact("miniaudio"));
     b.installArtifact(exe);
     const run_step = b.step("run", "Run the app");
     const run_cmd = b.addRunArtifact(exe);
