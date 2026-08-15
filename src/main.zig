@@ -16,7 +16,7 @@ pub fn main(init: std.process.Init) !u8 {
 fn run(init: std.process.Init) !void {
     zaudio.init(init.gpa);
     defer zaudio.deinit();
-    var runner = try Runner.init(init.io, init.minimal.args);
+    var runner = try Runner.init(init.io, init.gpa, init.minimal.args);
     defer runner.deinit();
     try runApp(&runner);
 }
