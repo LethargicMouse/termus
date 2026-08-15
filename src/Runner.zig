@@ -82,6 +82,15 @@ pub fn draw(runner: *Runner) !void {
     }
 }
 
+pub fn update(runner: *Runner) !void {
+    if (runner.playing) |*playing| {
+        if (playing.sound.isAtEnd()) {
+            try runner.stopPlaying(playing);
+            try runner.play((playing.id + 1) % runner.entry_count);
+        }
+    }
+}
+
 fn getDrawStart(runner: *Runner) !usize {
     const size = try runner.app.term.getSize();
     const height = size.height;
@@ -108,7 +117,7 @@ fn togglePlay(runner: *Runner) !void {
     if (runner.playing) |*playing| {
         if (playing.id != runner.cursor) {
             try runner.stopPlaying(playing);
-            try runner.play();
+            try runner.play(runner.cursor);
             return;
         }
         if (playing.sound.isPlaying()) {
@@ -117,7 +126,7 @@ fn togglePlay(runner: *Runner) !void {
             try resumePlaying(playing);
         }
     } else {
-        try runner.play();
+        try runner.play(runner.cursor);
     }
 }
 
@@ -134,11 +143,11 @@ fn stopPlaying(runner: *Runner, playing: *Playing) !void {
     runner.playing = null;
 }
 
-fn play(runner: *Runner) !void {
+fn play(runner: *Runner, id: usize) !void {
     var buffer: [256]u8 = undefined;
     @memcpy(buffer[0..runner.path.len], runner.path);
     buffer[runner.path.len] = '/';
-    const name_len = try runner.getCurrent(buffer[runner.path.len + 1 ..]);
+    const name_len = try runner.getEntryName(id, buffer[runner.path.len + 1 ..]);
     const current = buffer[0 .. runner.path.len + 1 + name_len :0];
     const sound = try runner.engine.createSoundFromFile(current, .{ .flags = .{
         .stream = true,
@@ -146,15 +155,15 @@ fn play(runner: *Runner) !void {
     try sound.start();
     runner.playing = .{
         .sound = sound,
-        .id = runner.cursor,
+        .id = id,
     };
 }
 
-fn getCurrent(runner: *Runner, buffer: []u8) !usize {
+fn getEntryName(runner: *Runner, id: usize, buffer: []u8) !usize {
     var iter = runner.dir.iterate();
     var i: usize = 0;
     while (try iter.next(runner.app.io)) |entry| : (i += 1) {
-        if (i == runner.cursor) {
+        if (i == id) {
             // it remains valid until `next` is called again so it's ok
             @memcpy(buffer[0..entry.name.len], entry.name);
             buffer[entry.name.len] = 0;

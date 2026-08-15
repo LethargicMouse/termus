@@ -5,8 +5,8 @@
     .minimum_zig_version = "0.16.0",
     .dependencies = .{
         .raw_term = .{
-            .url = "git+https://github.com/LethargicMouse/raw-term#44a6038e78f5bc07bbf82f3785805f105b915f18",
-            .hash = "raw_term-0.0.0-MBLoo9gcAAAWLwqo_ZxNEmfF4lp_Wab3itLoj3L2_ZMl",
+            .url = "git+https://github.com/LethargicMouse/raw-term#453ae85bcd1b8d637589d7493e98978b7785c868",
+            .hash = "raw_term-0.0.0-MBLoowUdAADyXk9JEEID0aHwHN3EPNYcfaDdAyfS3ZJ5",
         },
         .zaudio = .{
             .url = "git+https://github.com/zig-gamedev/zaudio#8d0d7ebffe9008019134b3d202eabc5476aca3a4",
