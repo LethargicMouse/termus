@@ -145,11 +145,8 @@ fn stopPlaying(runner: *Runner, playing: *Playing) !void {
 
 fn play(runner: *Runner, id: usize) !void {
     var buffer: [256]u8 = undefined;
-    @memcpy(buffer[0..runner.path.len], runner.path);
-    buffer[runner.path.len] = '/';
-    const name_len = try runner.getEntryName(id, buffer[runner.path.len + 1 ..]);
-    const current = buffer[0 .. runner.path.len + 1 + name_len :0];
-    const sound = try runner.engine.createSoundFromFile(current, .{ .flags = .{
+    const path = try runner.getPath(id, &buffer);
+    const sound = try runner.engine.createSoundFromFile(path, .{ .flags = .{
         .stream = true,
     } });
     try sound.start();
@@ -157,6 +154,13 @@ fn play(runner: *Runner, id: usize) !void {
         .sound = sound,
         .id = id,
     };
+}
+
+fn getPath(runner: *Runner, id: usize, buffer: []u8) ![:0]const u8 {
+    @memcpy(buffer[0..runner.path.len], runner.path);
+    buffer[runner.path.len] = '/';
+    const name_len = try runner.getEntryName(id, buffer[runner.path.len + 1 ..]);
+    return buffer[0 .. runner.path.len + 1 + name_len :0];
 }
 
 fn getEntryName(runner: *Runner, id: usize, buffer: []u8) !usize {
