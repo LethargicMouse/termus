@@ -16,6 +16,7 @@ path: []const u8,
 engine: *zaudio.Engine,
 playing: ?Playing = null,
 arena: std.heap.ArenaAllocator,
+prng: std.Random.DefaultPrng,
 songs: []const []const u8,
 order: []usize,
 cursor: usize = 0,
@@ -41,9 +42,13 @@ pub fn init(io: std.Io, gpa: std.mem.Allocator, args: std.process.Args) !Runner 
     for (0..order.len) |i| {
         order[i] = i;
     }
+    var seed: u64 = undefined;
+    io.random(std.mem.asBytes(&seed));
+    const prng = std.Random.DefaultPrng.init(seed);
     return .{
         .app = app,
         .arena = arena,
+        .prng = prng,
         .path = path,
         .engine = engine,
         .order = order,
@@ -148,11 +153,7 @@ fn shuffle(runner: *Runner, id: usize) void {
         runner.order[i] = i;
     }
     std.mem.swap(usize, &runner.order[0], &runner.order[id]);
-    for (1..runner.order.len) |i| {
-        var rand = std.Random.DefaultPrng.init(0);
-        const random = rand.next() % (runner.order.len - 1) + 1;
-        std.mem.swap(usize, &runner.order[i], &runner.order[random]);
-    }
+    runner.prng.random().shuffle(usize, runner.order[1..]);
 }
 
 fn resumePlaying(playing: Playing) !void {
