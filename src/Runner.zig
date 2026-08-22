@@ -1,5 +1,6 @@
 const std = @import("std");
 
+const RawTerm = @import("raw_term").RawTerm;
 const zaudio = @import("zaudio");
 
 const App = @import("App.zig");
@@ -103,7 +104,7 @@ fn drawHelp(runner: *Runner) !void {
     );
     y -= 1;
     try runner.app.term.goto(x, y);
-    try runner.app.term.writeAll("q - exit | space - play/pause | p - play/pause");
+    try runner.app.term.writeAll("q - exit | r - random | space - play/pause | p - pause/play");
 }
 
 fn drawPlaying(runner: *Runner, playing: Playing) !void {
@@ -132,7 +133,11 @@ fn drawPlaying(runner: *Runner, playing: Playing) !void {
 }
 
 fn drawSong(runner: *Runner, i: usize) !void {
-    if (runner.cursor == i) {
+    const cursored = runner.cursor == i;
+    const bold = cursored;
+    const color = runner.getSongColor(i);
+    try runner.app.term.setColor(color, bold);
+    if (cursored) {
         try runner.app.term.writeAll(">");
     } else {
         try runner.app.term.writeAll(" ");
@@ -140,6 +145,15 @@ fn drawSong(runner: *Runner, i: usize) !void {
     const width = runner.app.term.size.width;
     const len = @min(runner.songs[i].len, getBarsX(width) - 5 - 3);
     try runner.app.term.print(" {s}", .{runner.songs[i][0..len]});
+}
+
+fn getSongColor(runner: Runner, i: usize) RawTerm.Color {
+    if (runner.playing) |playing| {
+        if (runner.order[playing.id] == i) {
+            return .white;
+        }
+    }
+    return .default;
 }
 
 fn getBarsX(width: u16) u16 {
@@ -193,6 +207,7 @@ pub fn handleInput(runner: *Runner, input: u8) !void {
         'j' => runner.cursor = (runner.cursor + 1) % runner.songs.len,
         'k' => runner.cursor = (runner.cursor + runner.songs.len - 1) % runner.songs.len,
         ' ' => try runner.togglePlay(),
+        'r' => try runner.playRandom(),
         else => runner.app.dirty = false,
     }
     if (runner.app.dirty) {
@@ -201,6 +216,11 @@ pub fn handleInput(runner: *Runner, input: u8) !void {
     if (runner.playing) |playing| {
         runner.app.dirty = true;
         switch (input) {
+            'p' => if (playing.sound.isPlaying()) {
+                try pausePlaying(playing);
+            } else {
+                try resumePlaying(playing);
+            },
             'h' => try playing.sound.seekToSecond(playing.now -| 5),
             'l' => try playing.sound.seekToSecond(playing.now + 5),
             ']' => try runner.playNext(playing),
@@ -238,6 +258,12 @@ fn shuffle(runner: *Runner, id: usize) void {
     }
     std.mem.swap(usize, &runner.order[0], &runner.order[id]);
     runner.prng.random().shuffle(usize, runner.order[1..]);
+}
+
+fn playRandom(runner: *Runner) !void {
+    const id = runner.prng.random().intRangeLessThan(usize, 0, runner.songs.len);
+    runner.shuffle(id);
+    try runner.play(0);
 }
 
 fn resumePlaying(playing: Playing) !void {
