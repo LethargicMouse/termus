@@ -7,6 +7,8 @@ const App = @import("App.zig");
 const Playing = struct {
     sound: *zaudio.Sound,
     id: usize,
+    now: u16 = 0,
+    total: u16,
 };
 
 const Runner = @This();
@@ -76,14 +78,40 @@ pub fn deinit(runner: *Runner) void {
 
 pub fn draw(runner: *Runner) !void {
     const start = try runner.getDrawStart();
-    const size = try runner.app.term.getSize();
-    const end = start + size.height;
+    const height = runner.app.term.size.height;
+    const end = start + height;
     try runner.app.term.goto(1, 1);
     try runner.drawSong(start);
     for (start + 1..@min(end, runner.songs.len)) |i| {
         try runner.app.term.writeAll("\r\n");
         try runner.drawSong(i);
+        try runner.drawBar(i);
     }
+    if (runner.playing) |playing| {
+        try runner.drawPlaying(playing);
+    }
+}
+
+fn drawPlaying(runner: *Runner, playing: Playing) !void {
+    const width = runner.app.term.size.width;
+    const left = getBarsX(width) + 3;
+    try runner.app.term.goto(left, 2);
+    const name = runner.songs[runner.order[playing.id]];
+    try runner.app.term.setColor(.default, true);
+    try runner.app.term.writeAll(name);
+    try runner.app.term.goto(left, 3);
+    try runner.app.term.print(
+        "{d:0>2}:{d:0>2} / {d:0>2}:{d:0>2} ",
+        .{ playing.now / 60, playing.now % 60, playing.total / 60, playing.total % 60 },
+    );
+    try runner.app.term.writeByte('[');
+    const frac = playing.now * 50 / playing.total;
+    for (0..frac) |_| {
+        try runner.app.term.writeByte('=');
+    }
+    try runner.app.term.go(.right, 50 - frac);
+    try runner.app.term.writeByte(']');
+    try runner.app.term.setColor(.default, false);
 }
 
 fn drawSong(runner: *Runner, i: usize) !void {
@@ -92,21 +120,42 @@ fn drawSong(runner: *Runner, i: usize) !void {
     } else {
         try runner.app.term.writeAll(" ");
     }
-    try runner.app.term.print(" {s}", .{runner.songs[i]});
+    const width = runner.app.term.size.width;
+    const len = @min(runner.songs[i].len, getBarsX(width) - 5 - 3);
+    try runner.app.term.print(" {s}", .{runner.songs[i][0..len]});
+}
+
+fn getBarsX(width: u16) u16 {
+    return width / 3;
+}
+
+fn drawBar(runner: *Runner, i: usize) !void {
+    const width = runner.app.term.size.width;
+    const need = getBarsX(width);
+    const now = @min(runner.songs[i].len + 3, need - 5);
+    const shift = need - now;
+    try runner.app.term.go(.right, shift);
+    try runner.app.term.writeByte('|');
 }
 
 pub fn update(runner: *Runner) !void {
-    if (runner.playing) |playing| {
+    if (runner.playing) |*playing| {
         if (playing.sound.isAtEnd()) {
-            try runner.stopPlaying(playing);
+            try runner.stopPlaying(playing.*);
             try runner.play((playing.id + 1) % runner.songs.len);
+            runner.app.dirty = true;
+        } else {
+            const now: u16 = @floor(try playing.sound.getCursorInSeconds());
+            if (playing.now != now) {
+                playing.now = now;
+                runner.app.dirty = true;
+            }
         }
     }
 }
 
 fn getDrawStart(runner: *Runner) !usize {
-    const size = try runner.app.term.getSize();
-    const height = size.height;
+    const height = runner.app.term.size.height;
     if (runner.cursor <= height / 2) {
         return 0;
     }
@@ -175,10 +224,12 @@ fn play(runner: *Runner, id: usize) !void {
     const sound = try runner.engine.createSoundFromFile(path, .{ .flags = .{
         .stream = true,
     } });
+    const total: u16 = @floor(try sound.getLengthInSeconds());
     try sound.start();
     runner.playing = .{
         .sound = sound,
         .id = id,
+        .total = total,
     };
 }
 
