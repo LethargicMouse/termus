@@ -90,26 +90,43 @@ pub fn draw(runner: *Runner) !void {
     if (runner.playing) |playing| {
         try runner.drawPlaying(playing);
     }
+
+    try runner.drawHelp();
+}
+
+fn drawHelp(runner: *Runner) !void {
+    const x = getBarsX(runner.app.term.size.width) + 3;
+    var y = runner.app.term.size.height - 1;
+    try runner.app.term.goto(x, y);
+    try runner.app.term.writeAll(
+        "[/] - next/prev song | h/l - back/forward 5 secs | j/k - go down/up",
+    );
+    y -= 1;
+    try runner.app.term.goto(x, y);
+    try runner.app.term.writeAll("q - exit | space - play/pause | p - play/pause");
 }
 
 fn drawPlaying(runner: *Runner, playing: Playing) !void {
     const width = runner.app.term.size.width;
-    const left = getBarsX(width) + 3;
-    try runner.app.term.goto(left, 2);
+    const x = getBarsX(width) + 3;
+    var y: u16 = 2;
+    try runner.app.term.goto(x, y);
     const name = runner.songs[runner.order[playing.id]];
     try runner.app.term.setColor(.default, true);
     try runner.app.term.writeAll(name);
-    try runner.app.term.goto(left, 3);
+    y += 1;
+    try runner.app.term.goto(x, y);
     try runner.app.term.print(
         "{d:0>2}:{d:0>2} / {d:0>2}:{d:0>2} ",
         .{ playing.now / 60, playing.now % 60, playing.total / 60, playing.total % 60 },
     );
     try runner.app.term.writeByte('[');
-    const frac = playing.now * 50 / playing.total;
+    const len = width / 4;
+    const frac = playing.now * len / playing.total;
     for (0..frac) |_| {
         try runner.app.term.writeByte('=');
     }
-    try runner.app.term.go(.right, 50 - frac);
+    try runner.app.term.go(.right, len - frac);
     try runner.app.term.writeByte(']');
     try runner.app.term.setColor(.default, false);
 }
@@ -141,8 +158,7 @@ fn drawBar(runner: *Runner, i: usize) !void {
 pub fn update(runner: *Runner) !void {
     if (runner.playing) |*playing| {
         if (playing.sound.isAtEnd()) {
-            try runner.stopPlaying(playing.*);
-            try runner.play((playing.id + 1) % runner.songs.len);
+            try runner.playNext(playing.*);
             runner.app.dirty = true;
         } else {
             const now: u16 = @floor(try playing.sound.getCursorInSeconds());
@@ -152,6 +168,12 @@ pub fn update(runner: *Runner) !void {
             }
         }
     }
+}
+
+fn playNext(runner: *Runner, playing: Playing) !void {
+    try runner.stopPlaying(playing);
+    const next = (playing.id + 1) % runner.songs.len;
+    try runner.play(next);
 }
 
 fn getDrawStart(runner: *Runner) !usize {
@@ -170,17 +192,30 @@ pub fn handleInput(runner: *Runner, input: u8) !void {
         'q', 27 => runner.running = false,
         'j' => runner.cursor = (runner.cursor + 1) % runner.songs.len,
         'k' => runner.cursor = (runner.cursor + runner.songs.len - 1) % runner.songs.len,
-        'l' => if (runner.playing) |playing| {
-            try playing.sound.seekToSecond(5 + try playing.sound.getCursorInSeconds());
-        },
         ' ' => try runner.togglePlay(),
         else => runner.app.dirty = false,
+    }
+    if (runner.app.dirty) {
+        return;
+    }
+    if (runner.playing) |playing| {
+        runner.app.dirty = true;
+        switch (input) {
+            'h' => try playing.sound.seekToSecond(playing.now -| 5),
+            'l' => try playing.sound.seekToSecond(playing.now + 5),
+            ']' => try runner.playNext(playing),
+            '[' => {
+                try runner.stopPlaying(playing);
+                try runner.play(playing.id -| 1);
+            },
+            else => runner.app.dirty = false,
+        }
     }
 }
 
 fn togglePlay(runner: *Runner) !void {
     if (runner.playing) |playing| {
-        if (playing.id != runner.cursor) {
+        if (runner.order[playing.id] != runner.cursor) {
             try runner.stopPlaying(playing);
             runner.shuffle(runner.cursor);
             try runner.play(0);
