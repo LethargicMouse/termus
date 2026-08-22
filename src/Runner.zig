@@ -78,7 +78,7 @@ pub fn draw(runner: *Runner) !void {
     const start = try runner.getDrawStart();
     const size = try runner.app.term.getSize();
     const end = start + size.height;
-    try runner.app.term.moveTo(1, 1);
+    try runner.app.term.goto(1, 1);
     try runner.drawSong(start);
     for (start + 1..@min(end, runner.songs.len)) |i| {
         try runner.app.term.writeAll("\r\n");
