@@ -110,7 +110,7 @@ fn drawPlaying(runner: *Runner, playing: Playing, term: *rt.RawTerm) !void {
     var y: u16 = 2;
     try term.goto(x, y);
     const name = runner.songs[runner.order[playing.id]];
-    try term.setColor(.default, true);
+    try term.setDisplay(&.{.bold});
     try term.writeAll(name);
     y += 1;
     try term.goto(x, y);
@@ -126,15 +126,17 @@ fn drawPlaying(runner: *Runner, playing: Playing, term: *rt.RawTerm) !void {
     }
     try term.go(.right, len - frac);
     try term.writeByte(']');
-    try term.setColor(.default, false);
+    try term.setDisplay(&.{.reset});
 }
 
 fn drawSong(runner: *Runner, i: usize, term: *rt.RawTerm) !void {
     const cursored = runner.cursor == i;
-    const bold = cursored;
     const color = runner.getSongColor(i);
-    try term.setColor(color, bold);
+    try term.setDisplay(&.{
+        .{ .fg = color },
+    });
     if (cursored) {
+        try term.setDisplay(&.{.bold});
         try term.writeAll(">");
     } else {
         try term.writeAll(" ");
@@ -144,7 +146,7 @@ fn drawSong(runner: *Runner, i: usize, term: *rt.RawTerm) !void {
     try term.print(" {s}", .{runner.songs[i][0..len]});
 }
 
-fn getSongColor(runner: Runner, i: usize) rt.RawTerm.Color {
+fn getSongColor(runner: Runner, i: usize) rt.RawTerm.ansi.Color {
     if (runner.playing) |playing| {
         if (runner.order[playing.id] == i) {
             return .white;
@@ -164,6 +166,7 @@ fn drawBar(runner: *Runner, i: usize, term: *rt.RawTerm) !void {
     const shift = need - now;
     try term.go(.right, shift);
     try term.writeByte('|');
+    try term.setDisplay(&.{.reset});
 }
 
 pub fn update(runner: *Runner, _: *rt.App) !bool {
