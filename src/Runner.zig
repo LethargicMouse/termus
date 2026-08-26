@@ -80,6 +80,7 @@ pub fn draw(runner: *Runner, term: *rt.RawTerm) !void {
     const end = from + height;
     try term.goto(1, 1);
     try runner.drawSong(from, term);
+    try runner.drawBar(from, term);
     for (from + 1..@min(end, runner.songs.len)) |i| {
         try term.writeAll("\r\n");
         try runner.drawSong(i, term);
@@ -131,9 +132,9 @@ fn drawPlaying(runner: *Runner, playing: Playing, term: *rt.RawTerm) !void {
 
 fn drawSong(runner: *Runner, i: usize, term: *rt.RawTerm) !void {
     const cursored = runner.cursor == i;
-    const color = runner.getSongColor(i);
+    const bg_color = runner.getSongColor(i);
     try term.setDisplay(&.{
-        .{ .fg = color },
+        .{ .bg = bg_color },
     });
     if (cursored) {
         try term.setDisplay(&.{.bold});
@@ -149,7 +150,7 @@ fn drawSong(runner: *Runner, i: usize, term: *rt.RawTerm) !void {
 fn getSongColor(runner: Runner, i: usize) rt.RawTerm.ansi.Color {
     if (runner.playing) |playing| {
         if (runner.order[playing.id] == i) {
-            return .white;
+            return .blue;
         }
     }
     return .default;
