@@ -132,9 +132,9 @@ fn drawPlaying(runner: *Runner, playing: Playing, term: *rt.RawTerm) !void {
 
 fn drawSong(runner: *Runner, i: usize, term: *rt.RawTerm) !void {
     const cursored = runner.cursor == i;
-    const bg_color = runner.getSongColor(i);
+    const color = runner.getSongColor(i);
     try term.setDisplay(&.{
-        .{ .bg = bg_color },
+        .{ .fg = color },
     });
     if (cursored) {
         try term.setDisplay(&.{.bold});
@@ -150,7 +150,7 @@ fn drawSong(runner: *Runner, i: usize, term: *rt.RawTerm) !void {
 fn getSongColor(runner: Runner, i: usize) rt.RawTerm.ansi.Color {
     if (runner.playing) |playing| {
         if (runner.order[playing.id] == i) {
-            return .blue;
+            return .white;
         }
     }
     return .default;
